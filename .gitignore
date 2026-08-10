@@ -1,0 +1,97 @@
+# ============================================================
+# Melodify - Git Ignore
+# ============================================================
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+
+# ----------------------------
+# Frontend - Next.js / Node
+# ----------------------------
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+frontend/coverage/
+frontend/.turbo/
+frontend/.vercel/
+frontend/.cache/
+frontend/*.tsbuildinfo
+
+# Next.js generated files
+frontend/next-env.d.ts
+
+# Package manager caches / temporary files
+frontend/.npm/
+frontend/.yarn/
+frontend/.pnpm-store/
+
+# ----------------------------
+# Backend - Go
+# ----------------------------
+backend/bin/
+backend/tmp/
+backend/vendor/
+
+# Go build/test artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+
+# Go workspace / local tooling
+go.work
+go.work.sum
+
+# ----------------------------
+# Database / local data
+# ----------------------------
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+
+# ----------------------------
+# Project scan / generated reports
+# ----------------------------
+hasil_scan_*.txt
+scan_project.txt
+scan_*.txt
+
+# Python cache (scanner/tooling)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
