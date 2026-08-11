@@ -15,6 +15,8 @@ type Playlist struct {
 	CreatedAt   time.Time `json:"createdAt"`
 	// SongCount hanya diisi saat list playlist (bukan detail), lewat query JOIN
 	SongCount int `json:"songCount"`
+	// OwnerUsername hanya diisi di endpoint admin (lihat playlist semua user)
+	OwnerUsername string `json:"ownerUsername,omitempty"`
 }
 
 // PlaylistDetail dipakai saat GET /api/playlists/:id, ikut membawa daftar lagunya

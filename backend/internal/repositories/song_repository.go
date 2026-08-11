@@ -13,6 +13,9 @@ type SongRepository interface {
 	List(ctx context.Context) ([]models.Song, error)
 	Search(ctx context.Context, query string) ([]models.Song, error)
 	FindByID(ctx context.Context, id string) (*models.Song, error)
+	Create(ctx context.Context, song *models.Song) error
+	Update(ctx context.Context, song *models.Song) error
+	Delete(ctx context.Context, id string) error
 }
 
 type songRepository struct {
@@ -102,4 +105,29 @@ func (r *songRepository) FindByID(ctx context.Context, id string) (*models.Song,
 	}
 
 	return &s, nil
+}
+
+func (r *songRepository) Create(ctx context.Context, song *models.Song) error {
+	query := `
+		INSERT INTO songs (title, artist, album, cover_url, audio_url, duration)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, created_at
+	`
+	return r.db.QueryRow(ctx, query, song.Title, song.Artist, song.Album, song.CoverURL, song.AudioURL, song.Duration).
+		Scan(&song.ID, &song.CreatedAt)
+}
+
+func (r *songRepository) Update(ctx context.Context, song *models.Song) error {
+	query := `
+		UPDATE songs
+		SET title = $1, artist = $2, album = $3, cover_url = $4, audio_url = $5, duration = $6
+		WHERE id = $7
+	`
+	_, err := r.db.Exec(ctx, query, song.Title, song.Artist, song.Album, song.CoverURL, song.AudioURL, song.Duration, song.ID)
+	return err
+}
+
+func (r *songRepository) Delete(ctx context.Context, id string) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM songs WHERE id = $1`, id)
+	return err
 }

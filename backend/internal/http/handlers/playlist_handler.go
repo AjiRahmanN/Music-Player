@@ -41,6 +41,30 @@ func respondAppError(c *gin.Context, err error, fallbackMessage string) {
 }
 
 // ======================
+// GET /api/admin/playlists — semua playlist, lintas user
+// ======================
+func (h *PlaylistHandler) AdminListAll(c *gin.Context) {
+	playlists, err := h.service.ListAll(c.Request.Context())
+	if err != nil {
+		respondAppError(c, err, "Failed to fetch playlists")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"playlists": playlists}})
+}
+
+// ======================
+// DELETE /api/admin/playlists/:id — hapus playlist siapa pun
+// ======================
+func (h *PlaylistHandler) AdminDelete(c *gin.Context) {
+	playlistID := c.Param("id")
+	if err := h.service.AdminDelete(c.Request.Context(), playlistID); err != nil {
+		respondAppError(c, err, "Failed to delete playlist")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Playlist deleted successfully"})
+}
+
+// ======================
 // POST /api/playlists
 // ======================
 func (h *PlaylistHandler) Create(c *gin.Context) {

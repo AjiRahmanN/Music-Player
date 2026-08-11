@@ -54,6 +54,7 @@ frontend/.pnpm-store/
 backend/bin/
 backend/tmp/
 backend/vendor/
+backend/uploads/
 
 # Go build/test artifacts
 *.exe

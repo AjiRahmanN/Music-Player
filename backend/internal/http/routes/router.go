@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -21,6 +22,14 @@ var Log *zap.Logger
 
 func SetupRouter(db *pgxpool.Pool) *gin.Engine {
 	r := gin.Default()
+
+	// Batas ukuran form-data upload (25MB, samakan dengan maxFileSize terbesar di UploadHandler)
+	r.MaxMultipartMemory = 25 << 20
+
+	// Layani file yang sudah diupload secara statis, contoh:
+	// http://localhost:8080/uploads/covers/169999999.jpg
+	r.Static("/uploads", "./uploads")
+
 	allowedOrigins := strings.Split(os.Getenv("FRONTEND_ORIGIN"), ",")
 	if allowedOrigins[0] == "" {
 		allowedOrigins = []string{"http://localhost:3000", "http://localhost:8080"}
@@ -57,16 +66,20 @@ func SetupRouter(db *pgxpool.Pool) *gin.Engine {
 	rtRepo := repositories.NewRefreshTokenRepository(db)
 	songRepo := repositories.NewSongRepository(db)
 	playlistRepo := repositories.NewPlaylistRepository(db)
+	adminUserRepo := repositories.NewAdminUserRepository(db)
 
 	authService := services.NewAuthService(userRepo, rtRepo)
 	userService := services.NewUserService(userRepo)
 	songService := services.NewSongService(songRepo)
 	playlistService := services.NewPlaylistService(playlistRepo, songRepo)
+	adminUserService := services.NewAdminUserService(adminUserRepo)
 
 	authHandler := handlers.NewAuthHandler(authService)
 	userHandler := handlers.NewUserHandler(userService)
 	songHandler := handlers.NewSongHandler(songService)
 	playlistHandler := handlers.NewPlaylistHandler(playlistService)
+	adminUserHandler := handlers.NewAdminUserHandler(adminUserService)
+	uploadHandler := handlers.NewUploadHandler()
 	healthHandler := handlers.NewHealthHandler()
 
 	// Public routes
@@ -105,6 +118,29 @@ func SetupRouter(db *pgxpool.Pool) *gin.Engine {
 		protected.DELETE("/playlists/:id", playlistHandler.Delete)
 		protected.POST("/playlists/:id/songs", playlistHandler.AddSong)
 		protected.DELETE("/playlists/:id/songs/:songId", playlistHandler.RemoveSong)
+	}
+
+	// Admin routes (butuh login DAN is_admin = true)
+	admin := r.Group("/api/admin")
+	admin.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware(db))
+	{
+		// Kalau request ini sampai ke handler (lolos AdminMiddleware),
+		// berarti user itu pasti admin — dipakai frontend buat cek akses.
+		admin.GET("/check", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"isAdmin": true})
+		})
+
+		admin.POST("/upload", uploadHandler.Upload)
+		admin.POST("/songs", songHandler.Create)
+		admin.PUT("/songs/:id", songHandler.Update)
+		admin.DELETE("/songs/:id", songHandler.Delete)
+
+		admin.GET("/users", adminUserHandler.List)
+		admin.PUT("/users/:id", adminUserHandler.Update)
+		admin.DELETE("/users/:id", adminUserHandler.Delete)
+
+		admin.GET("/playlists", playlistHandler.AdminListAll)
+		admin.DELETE("/playlists/:id", playlistHandler.AdminDelete)
 
 		// Future routes can be added here
 		// protected.GET("/users", userHandler.List)

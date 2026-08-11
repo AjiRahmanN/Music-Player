@@ -50,6 +50,30 @@ func (s *PlaylistService) ListByUser(ctx context.Context, userID string) ([]mode
 	return playlists, nil
 }
 
+// ListAll dan AdminDelete khusus dipakai endpoint admin — TIDAK ada
+// pengecekan kepemilikan seperti method lain di service ini.
+func (s *PlaylistService) ListAll(ctx context.Context) ([]models.Playlist, error) {
+	playlists, err := s.repo.ListAll(ctx)
+	if err != nil {
+		return nil, apperrors.NewInternalError(err)
+	}
+	return playlists, nil
+}
+
+func (s *PlaylistService) AdminDelete(ctx context.Context, playlistID string) error {
+	existing, err := s.repo.FindByID(ctx, playlistID)
+	if err != nil {
+		return apperrors.NewInternalError(err)
+	}
+	if existing == nil {
+		return apperrors.NewNotFoundError("playlist", playlistID)
+	}
+	if err := s.repo.Delete(ctx, playlistID); err != nil {
+		return apperrors.NewInternalError(err)
+	}
+	return nil
+}
+
 // getOwnedPlaylist mengambil playlist dan sekaligus memastikan playlist itu
 // benar milik userID. Kalau tidak ditemukan ATAU bukan miliknya, sengaja
 // dikembalikan error yang sama (NotFound) supaya tidak membocorkan info

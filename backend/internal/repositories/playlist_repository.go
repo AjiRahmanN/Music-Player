@@ -12,6 +12,7 @@ import (
 type PlaylistRepository interface {
 	Create(ctx context.Context, playlist *models.Playlist) error
 	ListByUser(ctx context.Context, userID string) ([]models.Playlist, error)
+	ListAll(ctx context.Context) ([]models.Playlist, error)
 	FindByID(ctx context.Context, id string) (*models.Playlist, error)
 	Delete(ctx context.Context, id string) error
 	AddSong(ctx context.Context, playlistID, songID string) error
@@ -58,6 +59,39 @@ func (r *playlistRepository) ListByUser(ctx context.Context, userID string) ([]m
 	for rows.Next() {
 		var p models.Playlist
 		if err := rows.Scan(&p.ID, &p.UserID, &p.Name, &p.Description, &p.CoverURL, &p.CreatedAt, &p.SongCount); err != nil {
+			return nil, err
+		}
+		playlists = append(playlists, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return playlists, nil
+}
+
+func (r *playlistRepository) ListAll(ctx context.Context) ([]models.Playlist, error) {
+	query := `
+		SELECT p.id, p.user_id, p.name, p.description, p.cover_url, p.created_at,
+		       COUNT(ps.song_id) AS song_count, u.username
+		FROM playlists p
+		LEFT JOIN playlist_songs ps ON ps.playlist_id = p.id
+		JOIN users u ON u.id = p.user_id
+		GROUP BY p.id, u.username
+		ORDER BY p.created_at DESC
+	`
+
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	playlists := make([]models.Playlist, 0)
+	for rows.Next() {
+		var p models.Playlist
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Name, &p.Description, &p.CoverURL, &p.CreatedAt, &p.SongCount, &p.OwnerUsername); err != nil {
 			return nil, err
 		}
 		playlists = append(playlists, p)
