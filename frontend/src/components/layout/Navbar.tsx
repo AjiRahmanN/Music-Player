@@ -4,6 +4,7 @@ import { authService } from "@/services/authService";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { User, LogOut, Music } from "lucide-react";
+import NavLinks from "@/components/layout/NavLinks";
 
 export default function Navbar() {
   const { user, logout } = useAuthStore();
@@ -20,10 +21,14 @@ export default function Navbar() {
 
   return (
     <nav className="flex justify-between items-center p-4 bg-zinc-950 border-b border-zinc-800 sticky top-0 z-50">
-      <Link href="/" className="flex items-center gap-2 font-bold text-xl text-green-500">
-        <Music size={28} />
-        <span>Melodify</span>
-      </Link>
+      <div className="flex items-center gap-8">
+        <Link href="/" className="flex items-center gap-2 font-bold text-xl text-green-500">
+          <Music size={28} />
+          <span>Melodify</span>
+        </Link>
+
+        {user && <NavLinks />}
+      </div>
 
       <div className="flex items-center gap-6">
         {user ? (

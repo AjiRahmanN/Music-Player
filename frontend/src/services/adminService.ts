@@ -1,5 +1,6 @@
 import api from "@/lib/axios";
 import type { Song } from "@/types/song";
+import type { AdminUserListResponse, AdminUserUpdateResponse, AdminPlaylistListResponse } from "@/types/admin";
 
 export interface SongFormData {
   title: string;
@@ -8,6 +9,12 @@ export interface SongFormData {
   coverUrl: string;
   audioUrl: string;
   duration: number;
+}
+
+export interface UpdateUserData {
+  username: string;
+  email: string;
+  isAdmin: boolean;
 }
 
 export const adminService = {
@@ -40,6 +47,33 @@ export const adminService = {
 
   async deleteSong(id: string): Promise<{ message?: string }> {
     const res = await api.delete(`/admin/songs/${id}`);
+    return res.data;
+  },
+
+  // ---- Users ----
+  async listUsers(): Promise<AdminUserListResponse> {
+    const res = await api.get("/admin/users");
+    return res.data;
+  },
+
+  async updateUser(id: string, data: UpdateUserData): Promise<AdminUserUpdateResponse> {
+    const res = await api.put(`/admin/users/${id}`, data);
+    return res.data;
+  },
+
+  async deleteUser(id: string): Promise<{ message?: string }> {
+    const res = await api.delete(`/admin/users/${id}`);
+    return res.data;
+  },
+
+  // ---- Playlists ----
+  async listAllPlaylists(): Promise<AdminPlaylistListResponse> {
+    const res = await api.get("/admin/playlists");
+    return res.data;
+  },
+
+  async deletePlaylist(id: string): Promise<{ message?: string }> {
+    const res = await api.delete(`/admin/playlists/${id}`);
     return res.data;
   },
 };
