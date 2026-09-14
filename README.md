@@ -13,10 +13,12 @@ Aplikasi web music streaming full-stack terinspirasi dari Spotify — dibangun d
 ## ✨ Fitur
 
 **Autentikasi**
+
 - Register, login, logout dengan JWT access token + refresh token (httpOnly cookie, rotasi otomatis)
 - Edit profil (username & email)
 
 **Pemutar Musik**
+
 - Play / pause / next / previous
 - Progress bar interaktif (klik & geser untuk seek)
 - Kontrol volume + mute
@@ -24,11 +26,13 @@ Aplikasi web music streaming full-stack terinspirasi dari Spotify — dibangun d
 - Antrian lagu mengikuti playlist yang sedang diputar
 
 **Lagu & Playlist**
+
 - Pencarian lagu (judul/artis) dengan debounce
 - Buat, lihat, dan hapus playlist pribadi
 - Tambah/hapus lagu dari playlist
 
 **Panel Admin**
+
 - Kelola lagu — tambah/edit/hapus, upload file cover & audio langsung (durasi terdeteksi otomatis dari file)
 - Kelola user — edit data & status admin, hapus user
 - Kelola playlist — lihat & hapus playlist milik semua user
@@ -37,9 +41,9 @@ Aplikasi web music streaming full-stack terinspirasi dari Spotify — dibangun d
 
 ## 🛠️ Tech Stack
 
-| | |
-|---|---|
-| **Backend** | Go, Gin, PostgreSQL (pgx), JWT, bcrypt, zap logger |
+|              |                                                                                 |
+| ------------ | ------------------------------------------------------------------------------- |
+| **Backend**  | Go, Gin, PostgreSQL (pgx), JWT, bcrypt, zap logger                              |
 | **Frontend** | Next.js 15 (App Router), TypeScript, Zustand, Tailwind CSS, Axios, Lucide Icons |
 
 ---
@@ -79,6 +83,7 @@ spotify/
 ## 🚀 Cara Menjalankan
 
 ### Prasyarat
+
 - [Go](https://go.dev/) 1.24+
 - [Node.js](https://nodejs.org/) 18+
 - [PostgreSQL](https://www.postgresql.org/) 14+
@@ -86,8 +91,8 @@ spotify/
 ### 1. Clone repository
 
 ```bash
-git clone <url-repo-ini>
-cd spotify
+git clone https://github.com/AjiRahmanN/Music-Player.git
+cd Music-Player
 ```
 
 ### 2. Setup Backend
@@ -161,22 +166,22 @@ Login ulang setelah itu supaya sesi ter-refresh, lalu akses `/admin`.
 
 ## 📡 Ringkasan API
 
-| Method | Endpoint | Auth | Keterangan |
-|---|---|---|---|
-| POST | `/api/auth/register` | – | Registrasi user baru |
-| POST | `/api/auth/login` | – | Login |
-| POST | `/api/auth/refresh` | – | Refresh access token |
-| POST | `/api/auth/logout` | – | Logout |
-| GET | `/api/me` | ✅ | Data user yang login |
-| PUT | `/api/profile` | ✅ | Update profil |
-| GET | `/api/songs` | ✅ | List/cari lagu (`?q=`) |
-| GET | `/api/playlists` | ✅ | List playlist milik sendiri |
-| POST | `/api/playlists` | ✅ | Buat playlist |
-| POST | `/api/playlists/:id/songs` | ✅ | Tambah lagu ke playlist |
-| POST | `/api/admin/songs` | 🛡️ Admin | Tambah lagu |
-| POST | `/api/admin/upload` | 🛡️ Admin | Upload file cover/audio |
-| GET | `/api/admin/users` | 🛡️ Admin | List semua user |
-| GET | `/api/admin/playlists` | 🛡️ Admin | List semua playlist |
+| Method | Endpoint                   | Auth     | Keterangan                  |
+| ------ | -------------------------- | -------- | --------------------------- |
+| POST   | `/api/auth/register`       | –        | Registrasi user baru        |
+| POST   | `/api/auth/login`          | –        | Login                       |
+| POST   | `/api/auth/refresh`        | –        | Refresh access token        |
+| POST   | `/api/auth/logout`         | –        | Logout                      |
+| GET    | `/api/me`                  | ✅       | Data user yang login        |
+| PUT    | `/api/profile`             | ✅       | Update profil               |
+| GET    | `/api/songs`               | ✅       | List/cari lagu (`?q=`)      |
+| GET    | `/api/playlists`           | ✅       | List playlist milik sendiri |
+| POST   | `/api/playlists`           | ✅       | Buat playlist               |
+| POST   | `/api/playlists/:id/songs` | ✅       | Tambah lagu ke playlist     |
+| POST   | `/api/admin/songs`         | 🛡️ Admin | Tambah lagu                 |
+| POST   | `/api/admin/upload`        | 🛡️ Admin | Upload file cover/audio     |
+| GET    | `/api/admin/users`         | 🛡️ Admin | List semua user             |
+| GET    | `/api/admin/playlists`     | 🛡️ Admin | List semua playlist         |
 
 ---
 
