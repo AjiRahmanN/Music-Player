@@ -45,7 +45,7 @@ func (h *AdminUserHandler) Update(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.Update(c.Request.Context(), id, &req)
+	user, err := h.service.Update(c.Request.Context(), c.GetString("user_id"), id, &req)
 	if err != nil {
 		respondAppError(c, err, "Failed to update user")
 		return

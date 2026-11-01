@@ -18,6 +18,15 @@ function buildShuffledQueue(queue: Track[], currentTrack: Track | null): Track[]
   return [currentTrack, ...shuffleArray(rest)];
 }
 
+// Patch state untuk "putar ulang dari awal lagu yang sama". Dipakai saat
+// lagu berikutnya/sebelumnya ternyata lagu yang sama dengan yang sedang aktif
+// (queue 1 lagu + repeat all, previous di index 0, klik lagu yang sedang
+// diputar): id track tidak berubah sehingga PlayerAudioEngine tidak akan
+// memuat ulang sumber audio, jadi kita minta restart lewat seek ke 0.
+function restartPatch(seekRequestId: number) {
+  return { progress: 0, seekRequestId: seekRequestId + 1, isPlaying: true, playbackError: null };
+}
+
 interface PlayerState {
   // Lagu yang sedang aktif
   currentTrack: Track | null;
@@ -43,8 +52,11 @@ interface PlayerState {
   previousVolume: number;
   isShuffled: boolean;
   repeatMode: RepeatMode;
+  // Pesan error pemutaran (mis. URL audio rusak); null jika tidak ada.
+  playbackError: string | null;
 
   // Actions
+  setPlaybackError: (message: string | null) => void;
   playTrack: (track: Track, queue?: Track[]) => void;
   togglePlay: () => void;
   setIsPlaying: (playing: boolean) => void;
@@ -71,6 +83,9 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   previousVolume: 1,
   isShuffled: false,
   repeatMode: "off",
+  playbackError: null,
+
+  setPlaybackError: (message) => set({ playbackError: message }),
 
   // Mulai putar sebuah track. Kalau dikasih `queue` (misal daftar lagu di
   // satu playlist), track lain di queue itu jadi antrian next/previous.
@@ -80,14 +95,15 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     const shuffledQueue = buildShuffledQueue(newQueue, track);
     const activeQueue = isShuffled ? shuffledQueue : newQueue;
     const index = activeQueue.findIndex((t) => t.id === track.id);
+    const state = get();
+    const sameTrack = state.currentTrack?.id === track.id;
 
     set({
       currentTrack: track,
       queue: newQueue,
       shuffledQueue,
       currentIndex: index === -1 ? 0 : index,
-      progress: 0,
-      isPlaying: true,
+      ...(sameTrack ? restartPatch(state.seekRequestId) : { progress: 0, isPlaying: true, playbackError: null }),
     });
   },
 
@@ -121,7 +137,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   toggleMute: () => set((state) => (state.volume > 0 ? { volume: 0 } : { volume: state.previousVolume > 0 ? state.previousVolume : 1 })),
 
   playNext: () => {
-    const { queue, shuffledQueue, isShuffled, currentIndex, repeatMode } = get();
+    const { queue, shuffledQueue, isShuffled, currentIndex, repeatMode, currentTrack, seekRequestId } = get();
     const activeQueue = isShuffled ? shuffledQueue : queue;
     if (activeQueue.length === 0) return;
 
@@ -137,32 +153,34 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       }
     }
 
+    const next = activeQueue[nextIndex];
     set({
-      currentTrack: activeQueue[nextIndex],
+      currentTrack: next,
       currentIndex: nextIndex,
-      progress: 0,
-      isPlaying: true,
+      ...(next.id === currentTrack?.id ? restartPatch(seekRequestId) : { progress: 0, isPlaying: true, playbackError: null }),
     });
   },
 
   playPrevious: () => {
-    const { queue, shuffledQueue, isShuffled, currentIndex, progress } = get();
+    const { queue, shuffledQueue, isShuffled, currentIndex, progress, currentTrack, seekRequestId } = get();
     const activeQueue = isShuffled ? shuffledQueue : queue;
     if (activeQueue.length === 0) return;
 
     // Kalau lagu sudah berjalan >3 detik, tombol previous mengulang dari
     // awal dulu (perilaku sama seperti Spotify), bukan langsung ke lagu sebelumnya.
+    // Sebelumnya hanya me-reset progress di store, sehingga audio asli tidak
+    // ikut kembali ke awal; sekarang lewat seek supaya benar-benar mengulang.
     if (progress > 3) {
-      set({ progress: 0 });
+      set({ progress: 0, seekRequestId: seekRequestId + 1 });
       return;
     }
 
     const prevIndex = currentIndex - 1 < 0 ? 0 : currentIndex - 1;
+    const prev = activeQueue[prevIndex];
     set({
-      currentTrack: activeQueue[prevIndex],
+      currentTrack: prev,
       currentIndex: prevIndex,
-      progress: 0,
-      isPlaying: true,
+      ...(prev.id === currentTrack?.id ? restartPatch(seekRequestId) : { progress: 0, isPlaying: true, playbackError: null }),
     });
   },
 

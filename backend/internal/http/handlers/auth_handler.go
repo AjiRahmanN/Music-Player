@@ -135,7 +135,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Set cookie dengan config yang benar
-	utils.SetRefreshTokenCookie(c, refreshToken, 60*60*24*30) // 30 days
+	utils.SetRefreshTokenCookie(c, refreshToken, int(utils.RefreshExpiry().Seconds()))
 	user, err := h.service.GetUserFromToken(ctx, accessToken)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error", "message": "Failed to load user"})
@@ -147,7 +147,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"data": gin.H{
 			"accessToken": accessToken,
 			"tokenType":   "Bearer",
-			"expiresIn":   900,
+			"expiresIn":   int(utils.AccessExpiry().Seconds()),
 			"user": gin.H{
 				"id": user.ID, "username": user.Username, "email": user.Email, "createdAt": user.CreatedAt,
 			},
@@ -203,7 +203,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	utils.SetRefreshTokenCookie(c, newRefreshToken, 60*60*24*30)
+	utils.SetRefreshTokenCookie(c, newRefreshToken, int(utils.RefreshExpiry().Seconds()))
 
 	// Return new access token
 	c.JSON(http.StatusOK, gin.H{
@@ -211,7 +211,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		"data": gin.H{
 			"accessToken": newAccessToken,
 			"tokenType":   "Bearer",
-			"expiresIn":   900, // 15 minutes in seconds
+			"expiresIn":   int(utils.AccessExpiry().Seconds()),
 		},
 	})
 }
@@ -223,8 +223,8 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	// Get refresh token from cookie
 	refreshToken, err := c.Cookie("refresh_token")
 	if err == nil && refreshToken != "" {
-		// Invalidate all tokens for this user
-		if err := h.service.LogoutAll(ctx, refreshToken); err != nil {
+		// Hanya sesi/perangkat ini yang di-logout; sesi di perangkat lain tetap aktif.
+		if err := h.service.Logout(ctx, refreshToken); err != nil {
 			if stdErrors.Is(err, context.DeadlineExceeded) {
 				c.JSON(http.StatusGatewayTimeout, gin.H{
 					"error":   "timeout_error",

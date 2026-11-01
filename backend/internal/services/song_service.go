@@ -16,16 +16,38 @@ func NewSongService(repo repositories.SongRepository) *SongService {
 	return &SongService{repo}
 }
 
-func (s *SongService) List(ctx context.Context) ([]models.Song, error) {
-	songs, err := s.repo.List(ctx)
+// Batas pagination. Tanpa parameter, client mendapat DefaultSongLimit lagu.
+const (
+	DefaultSongLimit = 100
+	MaxSongLimit     = 200
+)
+
+// NormalizePage merapikan limit/offset dari client ke rentang yang aman.
+func NormalizePage(limit, offset int) (int, int) {
+	if limit <= 0 {
+		limit = DefaultSongLimit
+	}
+	if limit > MaxSongLimit {
+		limit = MaxSongLimit
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return limit, offset
+}
+
+func (s *SongService) List(ctx context.Context, limit, offset int) ([]models.Song, error) {
+	limit, offset = NormalizePage(limit, offset)
+	songs, err := s.repo.List(ctx, limit, offset)
 	if err != nil {
 		return nil, apperrors.NewInternalError(err)
 	}
 	return songs, nil
 }
 
-func (s *SongService) Search(ctx context.Context, query string) ([]models.Song, error) {
-	songs, err := s.repo.Search(ctx, query)
+func (s *SongService) Search(ctx context.Context, query string, limit, offset int) ([]models.Song, error) {
+	limit, offset = NormalizePage(limit, offset)
+	songs, err := s.repo.Search(ctx, query, limit, offset)
 	if err != nil {
 		return nil, apperrors.NewInternalError(err)
 	}
@@ -40,8 +62,8 @@ func (s *SongService) Create(ctx context.Context, req *models.CreateSongRequest)
 	song := &models.Song{
 		Title:    req.Title,
 		Artist:   req.Artist,
-		CoverURL: req.CoverURL,
-		AudioURL: req.AudioURL,
+		CoverURL: models.NormalizeAssetURL(req.CoverURL),
+		AudioURL: models.NormalizeAssetURL(req.AudioURL),
 		Duration: req.Duration,
 	}
 	if req.Album != "" {
@@ -69,8 +91,8 @@ func (s *SongService) Update(ctx context.Context, id string, req *models.UpdateS
 
 	existing.Title = req.Title
 	existing.Artist = req.Artist
-	existing.CoverURL = req.CoverURL
-	existing.AudioURL = req.AudioURL
+	existing.CoverURL = models.NormalizeAssetURL(req.CoverURL)
+	existing.AudioURL = models.NormalizeAssetURL(req.AudioURL)
 	existing.Duration = req.Duration
 	if req.Album != "" {
 		existing.Album = &req.Album

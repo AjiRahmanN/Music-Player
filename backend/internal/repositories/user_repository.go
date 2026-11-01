@@ -51,12 +51,12 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	Update(ctx context.Context, user *models.User) error
 	Delete(ctx context.Context, id string) error
-	
+
 	// Query Operations
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
 	Count(ctx context.Context) (int64, error)
-	
+
 	// Bulk Operations
 	FindAll(ctx context.Context, limit, offset int) ([]*models.User, error)
 	FindByIDs(ctx context.Context, ids []string) ([]*models.User, error)
@@ -86,11 +86,11 @@ func (r *userRepo) Create(ctx context.Context, user *models.User) (*models.User,
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer func() {
-		if err != nil {
-			tx.Rollback(ctx)
-		}
-	}()
+	// Rollback tanpa syarat: aman dipanggil setelah Commit (hanya mengembalikan
+	// pgx.ErrTxClosed yang kita abaikan). Sebelumnya rollback bergantung pada
+	// variabel err, sehingga early-return (mis. DuplicateError) membocorkan
+	// transaksi dan koneksi pool.
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	// Cek duplicate dengan LOCK untuk menghindari race condition
 	var exists bool
@@ -100,11 +100,11 @@ func (r *userRepo) Create(ctx context.Context, user *models.User) (*models.User,
 			WHERE LOWER(email) = LOWER($1) 
 			FOR UPDATE
 		)`, user.Email).Scan(&exists)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to check duplicate email: %w", err)
 	}
-	
+
 	if exists {
 		return nil, &DuplicateError{Field: "email", Value: user.Email}
 	}
@@ -115,11 +115,11 @@ func (r *userRepo) Create(ctx context.Context, user *models.User) (*models.User,
 			SELECT 1 FROM users 
 			WHERE LOWER(username) = LOWER($1)
 		)`, user.Username).Scan(&exists)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to check duplicate username: %w", err)
 	}
-	
+
 	if exists {
 		return nil, &DuplicateError{Field: "username", Value: user.Username}
 	}
@@ -134,7 +134,7 @@ func (r *userRepo) Create(ctx context.Context, user *models.User) (*models.User,
 		INSERT INTO users (id, username, email, password_hash, created_at)
 		VALUES ($1, $2, $3, $4, $5)
 	`, user.ID, user.Username, user.Email, user.PasswordHash, user.CreatedAt)
-	
+
 	if err != nil {
 		// Handle specific PostgreSQL errors
 		if pgErr, ok := err.(*pgconn.PgError); ok {
@@ -165,7 +165,7 @@ func (r *userRepo) Create(ctx context.Context, user *models.User) (*models.User,
 		Email:     user.Email,
 		CreatedAt: user.CreatedAt,
 	}
-	
+
 	return createdUser, nil
 }
 
@@ -176,7 +176,7 @@ func (r *userRepo) FindByID(ctx context.Context, id string) (*models.User, error
 	}
 
 	var user models.User
-	
+
 	// Query dengan context timeout handling
 	err := r.db.QueryRow(ctx, `
 		SELECT id, username, email, password_hash, created_at
@@ -207,7 +207,7 @@ func (r *userRepo) FindByEmail(ctx context.Context, email string) (*models.User,
 	}
 
 	var user models.User
-	
+
 	err := r.db.QueryRow(ctx, `
 		SELECT id, username, email, password_hash, created_at
 		FROM users 
@@ -349,7 +349,7 @@ func (r *userRepo) FindAll(ctx context.Context, limit, offset int) ([]*models.Us
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`, limit, offset)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
 	}
@@ -426,31 +426,31 @@ func validateUserForCreate(user *models.User) error {
 	if user == nil {
 		return fmt.Errorf("user cannot be nil")
 	}
-	
+
 	if user.ID == "" {
 		return &ValidationError{Field: "id", Message: "user ID cannot be empty"}
 	}
-	
+
 	if user.Username == "" {
 		return &ValidationError{Field: "username", Message: "username cannot be empty"}
 	}
-	
+
 	if len(user.Username) < 3 || len(user.Username) > 50 {
 		return &ValidationError{Field: "username", Message: "username must be between 3-50 characters"}
 	}
-	
+
 	if user.Email == "" {
 		return &ValidationError{Field: "email", Message: "email cannot be empty"}
 	}
-	
+
 	if !strings.Contains(user.Email, "@") {
 		return &ValidationError{Field: "email", Message: "invalid email format"}
 	}
-	
+
 	if user.PasswordHash == "" {
 		return &ValidationError{Field: "password", Message: "password hash cannot be empty"}
 	}
-	
+
 	return nil
 }
 
@@ -459,7 +459,7 @@ func normalizeUser(user *models.User) {
 	if user == nil {
 		return
 	}
-	
+
 	user.Email = strings.ToLower(strings.TrimSpace(user.Email))
 	user.Username = strings.TrimSpace(user.Username)
 }

@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"strings"
 
 	"music-player-backend/internal/models"
 
@@ -10,8 +11,8 @@ import (
 )
 
 type SongRepository interface {
-	List(ctx context.Context) ([]models.Song, error)
-	Search(ctx context.Context, query string) ([]models.Song, error)
+	List(ctx context.Context, limit, offset int) ([]models.Song, error)
+	Search(ctx context.Context, query string, limit, offset int) ([]models.Song, error)
 	FindByID(ctx context.Context, id string) (*models.Song, error)
 	Create(ctx context.Context, song *models.Song) error
 	Update(ctx context.Context, song *models.Song) error
@@ -26,14 +27,15 @@ func NewSongRepository(db *pgxpool.Pool) SongRepository {
 	return &songRepository{db: db}
 }
 
-func (r *songRepository) List(ctx context.Context) ([]models.Song, error) {
+func (r *songRepository) List(ctx context.Context, limit, offset int) ([]models.Song, error) {
 	query := `
 		SELECT id, title, artist, album, cover_url, audio_url, duration, created_at
 		FROM songs
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, id
+		LIMIT $1 OFFSET $2
 	`
 
-	rows, err := r.db.Query(ctx, query)
+	rows, err := r.db.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -55,16 +57,25 @@ func (r *songRepository) List(ctx context.Context) ([]models.Song, error) {
 	return songs, nil
 }
 
-func (r *songRepository) Search(ctx context.Context, query string) ([]models.Song, error) {
+// EscapeLike meng-escape karakter spesial pola LIKE/ILIKE (\\, %, _) supaya
+// input user diperlakukan sebagai teks biasa. Backslash adalah escape default
+// PostgreSQL untuk LIKE.
+func EscapeLike(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return r.Replace(s)
+}
+
+func (r *songRepository) Search(ctx context.Context, query string, limit, offset int) ([]models.Song, error) {
 	sqlQuery := `
 		SELECT id, title, artist, album, cover_url, audio_url, duration, created_at
 		FROM songs
 		WHERE title ILIKE $1 OR artist ILIKE $1
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, id
+		LIMIT $2 OFFSET $3
 	`
 
-	pattern := "%" + query + "%"
-	rows, err := r.db.Query(ctx, sqlQuery, pattern)
+	pattern := "%" + EscapeLike(query) + "%"
+	rows, err := r.db.Query(ctx, sqlQuery, pattern, limit, offset)
 	if err != nil {
 		return nil, err
 	}

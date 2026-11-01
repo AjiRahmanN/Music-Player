@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	stdErrors "errors"
@@ -24,17 +25,20 @@ func NewSongHandler(service *services.SongService) *SongHandler {
 // ======================
 // GET /api/songs
 // GET /api/songs?q=keyword  -> pencarian berdasarkan judul/artis
+// Parameter opsional: limit (default 100, maks 200) dan offset (default 0).
 // ======================
 func (h *SongHandler) List(c *gin.Context) {
 	query := strings.TrimSpace(c.Query("q"))
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	offset, _ := strconv.Atoi(c.Query("offset"))
 
 	var songs []models.Song
 	var err error
 
 	if query != "" {
-		songs, err = h.service.Search(c.Request.Context(), query)
+		songs, err = h.service.Search(c.Request.Context(), query, limit, offset)
 	} else {
-		songs, err = h.service.List(c.Request.Context())
+		songs, err = h.service.List(c.Request.Context(), limit, offset)
 	}
 
 	if err != nil {

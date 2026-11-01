@@ -112,14 +112,11 @@ func (s *AuthService) Login(
 
 	// Find user by email
 	user, err := s.userRepo.FindByEmail(ctx, req.Email)
-	if err != nil {
-		// Don't leak information about user existence
-		return "", "", apperrors.ErrInvalidCredentials
-	}
-
-	// Check if user exists
-	if user == nil {
-		// Use same error message to prevent user enumeration
+	if err != nil || user == nil {
+		// Jalankan perbandingan bcrypt palsu supaya waktu respons email tidak
+		// terdaftar sama dengan email terdaftar (cegah user enumeration via
+		// timing). Error tetap seragam.
+		utils.BurnPasswordCheck(req.Password)
 		return "", "", apperrors.ErrInvalidCredentials
 	}
 
@@ -192,6 +189,17 @@ func (s *AuthService) Refresh(
 	}
 
 	return newAccessToken, newRefreshToken, nil
+}
+
+// Logout menghapus HANYA refresh token yang dipakai sesi ini.
+func (s *AuthService) Logout(ctx context.Context, rawRefreshToken string) error {
+	if rawRefreshToken == "" {
+		return nil
+	}
+	if err := s.rtRepo.DeleteByHash(ctx, utils.HashToken(rawRefreshToken)); err != nil {
+		return apperrors.NewInternalError(fmt.Errorf("failed to logout: %w", err))
+	}
+	return nil
 }
 
 // LogoutAll invalidates all refresh tokens for a user
@@ -314,8 +322,8 @@ func (s *AuthService) generateRefreshToken(
 	// Hash the token for storage
 	tokenHash := utils.HashToken(rawRefreshToken)
 
-	// Set expiration (30 days)
-	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+	// Set expiration (dari config, default 30 hari)
+	expiresAt := time.Now().Add(utils.RefreshExpiry())
 
 	// Store in database
 	if err := s.rtRepo.Create(ctx, userID, tokenHash, expiresAt); err != nil {

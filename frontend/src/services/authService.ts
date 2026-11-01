@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import { LoginRequest, LoginResponse, RegisterRequest, UserResponse, UpdateProfileRequest, UpdateProfileResponse } from "@/types/auth";
+import { LoginRequest, LoginResponse, RegisterRequest, MeResponse, UpdateProfileRequest, UpdateProfileResponse } from "@/types/auth";
 
 export const authService = {
   async login(data: LoginRequest): Promise<LoginResponse> {
@@ -12,12 +12,9 @@ export const authService = {
     return res.data;
   },
 
-  // Catatan: endpoint GET /me di backend sebenarnya mengembalikan objek flat
-  // ({id, username, email, created}), bukan dibungkus { data: { user } } seperti
-  // tipe UserResponse. Tipe ini dipertahankan apa adanya (perilaku lama) supaya
-  // AuthGuard.tsx yang sudah memakainya tidak berubah. Di halaman profile,
-  // hasilnya dibaca lewat tipe MeResponse (lihat src/types/auth.ts).
-  async getMe(): Promise<UserResponse> {
+  // GET /me di backend mengembalikan objek flat ({id, username, email, created}),
+  // bukan dibungkus { data: { user } }. Tipe MeResponse mencerminkan bentuk itu.
+  async getMe(): Promise<MeResponse> {
     const res = await api.get("/me");
     return res.data;
   },

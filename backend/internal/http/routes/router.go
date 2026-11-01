@@ -26,8 +26,22 @@ func SetupRouter(db *pgxpool.Pool) *gin.Engine {
 	// Batas ukuran form-data upload (25MB, samakan dengan maxFileSize terbesar di UploadHandler)
 	r.MaxMultipartMemory = 25 << 20
 
+	// Header keamanan dasar (nosniff untuk file upload) + batas ukuran body.
+	// Server tidak punya Read/WriteTimeout global, jadi body dibatasi di sini:
+	// 1 MB untuk request JSON, 26 MB khusus endpoint upload.
+	r.Use(middleware.SecurityHeaders())
+	r.Use(middleware.BodyLimit(1<<20, map[string]int64{
+		"/api/admin/upload": 26 << 20,
+	}))
+
+	// Rate limit endpoint auth yang rawan brute force / abuse.
+	loginLimiter := middleware.NewRateLimiter(10, time.Minute)   // 10 percobaan login/menit/IP
+	registerLimiter := middleware.NewRateLimiter(5, time.Minute) // 5 registrasi/menit/IP
+	refreshLimiter := middleware.NewRateLimiter(60, time.Minute) // refresh lebih longgar
+
 	// Layani file yang sudah diupload secara statis, contoh:
 	// http://localhost:8080/uploads/covers/169999999.jpg
+	// (didaftarkan SETELAH SecurityHeaders supaya ikut mendapat nosniff)
 	r.Static("/uploads", "./uploads")
 
 	allowedOrigins := strings.Split(os.Getenv("FRONTEND_ORIGIN"), ",")
@@ -90,9 +104,9 @@ func SetupRouter(db *pgxpool.Pool) *gin.Engine {
 
 		authGroup := public.Group("/auth")
 		{
-			authGroup.POST("/register", authHandler.Register)
-			authGroup.POST("/login", authHandler.Login)
-			authGroup.POST("/refresh", authHandler.Refresh)
+			authGroup.POST("/register", registerLimiter.Middleware(), authHandler.Register)
+			authGroup.POST("/login", loginLimiter.Middleware(), authHandler.Login)
+			authGroup.POST("/refresh", refreshLimiter.Middleware(), authHandler.Refresh)
 			authGroup.POST("/logout", authHandler.Logout)
 			authGroup.GET("/health", authHandler.HealthCheck)
 		}

@@ -12,6 +12,7 @@ import (
 	"music-player-backend/internal/config"
 	"music-player-backend/internal/http/routes"
 	"music-player-backend/internal/logger"
+	"music-player-backend/internal/models"
 	"music-player-backend/internal/utils"
 
 	"github.com/joho/godotenv"
@@ -34,8 +35,10 @@ func main() {
 	// Initialize logger
 	logger.InitLogger(config.AppConfig.Server.Env)
 
-	// Initialize JWT secret
+	// Initialize JWT secret & durasi token dari config
 	utils.SetJWTSecret(config.AppConfig.JWT.Secret)
+	utils.SetExpiry(config.AppConfig.JWT.AccessExpiry, config.AppConfig.JWT.RefreshExpiry)
+	models.SetAssetBaseURL(config.AppConfig.Server.PublicBaseURL)
 	// Verify JWT secret is set
 	if len(utils.JwtSecret) == 0 {
 		logger.Log.Fatal("JWT_SECRET is not properly initialized")
@@ -50,12 +53,20 @@ func main() {
 	r := routes.SetupRouter(config.DB)
 
 	// Create server with graceful shutdown
+	//
+	// Catatan timeout: ReadTimeout/WriteTimeout sengaja TIDAK dipasang karena
+	// berlaku untuk seluruh body request/response, sehingga memutus upload
+	// audio (25 MB) dan streaming file audio di koneksi lambat. Sebagai
+	// gantinya:
+	//   - ReadHeaderTimeout melindungi dari klien yang lambat mengirim header
+	//     (slowloris).
+	//   - Ukuran body dibatasi per-route lewat middleware.BodyLimit.
+	//   - Handler JSON memakai context timeout sendiri (lihat auth_handler).
 	server := &http.Server{
-		Addr:         ":" + config.AppConfig.Server.Port,
-		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:              ":" + config.AppConfig.Server.Port,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	// Start server in goroutine

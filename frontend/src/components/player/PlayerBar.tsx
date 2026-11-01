@@ -16,6 +16,7 @@ export default function PlayerBar() {
   const progress = usePlayerStore((s) => s.progress);
   const isShuffled = usePlayerStore((s) => s.isShuffled);
   const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const playbackError = usePlayerStore((s) => s.playbackError);
 
   const togglePlay = usePlayerStore((s) => s.togglePlay);
   const playNext = usePlayerStore((s) => s.playNext);
@@ -85,7 +86,13 @@ export default function PlayerBar() {
             <img src={currentTrack.coverUrl} alt={currentTrack.title} className="w-14 h-14 rounded object-cover" />
             <div className="min-w-0">
               <p className="text-sm font-medium text-white truncate">{currentTrack.title}</p>
-              <p className="text-xs text-zinc-400 truncate">{currentTrack.artist}</p>
+              {playbackError ? (
+                <p role="alert" className="text-xs text-red-400 line-clamp-2">
+                  {playbackError}
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-400 truncate">{currentTrack.artist}</p>
+              )}
             </div>
           </>
         ) : (

@@ -16,12 +16,15 @@ export default function PlayerAudioEngine() {
   const seekRequestId = usePlayerStore((s) => s.seekRequestId);
   const setProgress = usePlayerStore((s) => s.setProgress);
   const setIsPlaying = usePlayerStore((s) => s.setIsPlaying);
+  const setPlaybackError = usePlayerStore((s) => s.setPlaybackError);
   const playNext = usePlayerStore((s) => s.playNext);
 
   // Ganti sumber audio setiap kali lagu yang aktif berubah
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !currentTrack) return;
+
+    setPlaybackError(null);
 
     audio.src = currentTrack.audioUrl;
     audio.currentTime = 0;
@@ -63,6 +66,12 @@ export default function PlayerAudioEngine() {
     const audio = audioRef.current;
     if (!audio || seekRequestId === 0) return;
     audio.currentTime = progress;
+    // Audio yang sudah selesai (ended) tidak jalan lagi hanya karena
+    // currentTime diubah; kalau store bilang sedang play, mulai lagi
+    // (dipakai untuk restart lagu yang sama).
+    if (usePlayerStore.getState().isPlaying && audio.paused) {
+      audio.play().catch(() => setIsPlaying(false));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seekRequestId]);
 
@@ -75,10 +84,16 @@ export default function PlayerAudioEngine() {
         // Repeat satu lagu: ulang dari awal, bukan lanjut ke lagu berikutnya
         if (repeatMode === "one" && audio) {
           audio.currentTime = 0;
-          audio.play();
+          audio.play().catch(() => setIsPlaying(false));
           return;
         }
         playNext();
+      }}
+      onError={() => {
+        // URL rusak / format tidak didukung / file hilang: beri tahu user
+        // dan hentikan state "playing" supaya UI tidak menipu.
+        setIsPlaying(false);
+        setPlaybackError("Lagu tidak dapat diputar. File audio mungkin rusak atau tidak ditemukan.");
       }}
       className="hidden"
     />

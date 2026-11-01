@@ -18,9 +18,15 @@ export function mapSongToTrack(song: Song): Track {
 }
 
 export const songService = {
-  async list(query?: string): Promise<SongListResponse> {
+  // limit/offset opsional. Tanpa keduanya backend memakai default (100 lagu,
+  // maks 200 per request).
+  async list(query?: string, page?: { limit?: number; offset?: number }): Promise<SongListResponse> {
+    const params: Record<string, string | number> = {};
+    if (query) params.q = query;
+    if (page?.limit !== undefined) params.limit = page.limit;
+    if (page?.offset !== undefined) params.offset = page.offset;
     const res = await api.get("/songs", {
-      params: query ? { q: query } : undefined,
+      params: Object.keys(params).length ? params : undefined,
     });
     return res.data;
   },

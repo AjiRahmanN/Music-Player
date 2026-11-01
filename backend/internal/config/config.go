@@ -3,13 +3,14 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
 type Config struct {
-    DB DBConfig
-    JWT JWTConfig
-    Server ServerConfig
+	DB     DBConfig
+	JWT    JWTConfig
+	Server ServerConfig
 }
 
 type DBConfig struct {
@@ -22,7 +23,6 @@ type DBConfig struct {
 	MinConns int32
 }
 
-
 type JWTConfig struct {
 	Secret        string
 	AccessExpiry  time.Duration
@@ -33,30 +33,67 @@ type ServerConfig struct {
 	Env      string
 	Port     string
 	TimeZone string
+	// PublicBaseURL dipakai untuk membangun URL absolut file upload
+	// (cover/audio) yang dikirim ke client, mis. https://api.contoh.com
+	PublicBaseURL string
 }
+
+const (
+	DefaultAccessExpiry  = 15 * time.Minute
+	DefaultRefreshExpiry = 30 * 24 * time.Hour
+)
 
 var AppConfig *Config
 
+// parseDurationEnv membaca durasi dari env; kosong -> fallback; invalid/<=0 -> error.
+func parseDurationEnv(key string, fallback time.Duration) (time.Duration, error) {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s: %v", key, err)
+	}
+	if d <= 0 {
+		return 0, fmt.Errorf("invalid %s: must be greater than 0", key)
+	}
+	return d, nil
+}
+
 func LoadConfig() (*Config, error) {
-    // Load and validate all configs
+	// Load and validate all configs
 	// Load environment variables
 	env := os.Getenv("ENV")
 	if env == "" {
 		env = "development"
 	}
 
-	// Parse durations
-	// accessExpiry, _ := time.ParseDuration(os.Getenv("JWT_ACCESS_EXPIRY"))
-	accessExpiry, err := time.ParseDuration(os.Getenv("JWT_ACCESS_EXPIRY"))
+	// Durasi token: opsional. Kalau env kosong, pakai default yang aman
+	// (15 menit untuk access token, 30 hari untuk refresh token).
+	accessExpiry, err := parseDurationEnv("JWT_ACCESS_EXPIRY", DefaultAccessExpiry)
 	if err != nil {
-		return nil, fmt.Errorf("invalid JWT_ACCESS_EXPIRY: %v", err)
+		return nil, err
+	}
+	refreshExpiry, err := parseDurationEnv("JWT_REFRESH_EXPIRY", DefaultRefreshExpiry)
+	if err != nil {
+		return nil, err
 	}
 
-	// refreshExpirySTR, _ := time.ParseDuration(os.Getenv("JWT_REFRESH_EXPIRY"))
-	refreshExpiry, err := time.ParseDuration(os.Getenv("JWT_REFRESH_EXPIRY"))
-	if err != nil {
-		return nil, fmt.Errorf("invalid JWT_REFRESH_EXPIRY: %v", err)
+	// PORT adalah nama utama; SERVER_PORT diterima sebagai fallback (dipakai
+	// di README lama). Kalau dua-duanya kosong, jatuh ke 8080.
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = os.Getenv("SERVER_PORT")
 	}
+	if port == "" {
+		port = "8080"
+	}
+	publicBaseURL := strings.TrimRight(os.Getenv("PUBLIC_BASE_URL"), "/")
+	if publicBaseURL == "" {
+		publicBaseURL = "http://localhost:" + port
+	}
+
 	config := &Config{
 		DB: DBConfig{
 			Host:     os.Getenv("DB_HOST"),
@@ -73,9 +110,10 @@ func LoadConfig() (*Config, error) {
 			RefreshExpiry: refreshExpiry,
 		},
 		Server: ServerConfig{
-			Env:      env,
-			Port:     os.Getenv("PORT"),
-			TimeZone: "UTC",
+			Env:           env,
+			Port:          port,
+			TimeZone:      "UTC",
+			PublicBaseURL: publicBaseURL,
 		},
 	}
 
@@ -87,10 +125,6 @@ func LoadConfig() (*Config, error) {
 	if config.DB.Host == "" || config.DB.User == "" || config.DB.Name == "" {
 		return nil, fmt.Errorf("database configuration is incomplete")
 	}
-
-	if config.Server.Port == "" {
-	return nil, fmt.Errorf("PORT must be set")
-}
 
 	AppConfig = config
 	return config, nil

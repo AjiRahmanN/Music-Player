@@ -11,25 +11,45 @@ import (
 
 var JwtSecret []byte
 
+// Durasi token. Default-nya sama dengan perilaku lama (15 menit / 30 hari),
+// dan bisa di-override lewat SetExpiry() saat startup (dari config/env).
+var (
+	accessExpiry  = 15 * time.Minute
+	refreshExpiry = 30 * 24 * time.Hour
+)
+
+// SetExpiry mengatur durasi access & refresh token. Nilai <= 0 diabaikan.
+func SetExpiry(access, refresh time.Duration) {
+	if access > 0 {
+		accessExpiry = access
+	}
+	if refresh > 0 {
+		refreshExpiry = refresh
+	}
+}
+
+func AccessExpiry() time.Duration  { return accessExpiry }
+func RefreshExpiry() time.Duration { return refreshExpiry }
+
 func SetJWTSecret(secret string) {
 	JwtSecret = []byte(secret)
 }
 
 func InitJWTSecret() {
-    if len(JwtSecret) == 0 {
-        secret := os.Getenv("JWT_SECRET")
-        if secret == "" || secret == "your_super_secret_key_change_in_production" {
-            log.Fatal("JWT_SECRET must be set in environment and be secure")
-        }
-        JwtSecret = []byte(secret)
-    }
+	if len(JwtSecret) == 0 {
+		secret := os.Getenv("JWT_SECRET")
+		if secret == "" || secret == "your_super_secret_key_change_in_production" {
+			log.Fatal("JWT_SECRET must be set in environment and be secure")
+		}
+		JwtSecret = []byte(secret)
+	}
 }
 
 func GetJWTSecret() []byte {
-    if len(JwtSecret) == 0 {
-        InitJWTSecret()
-    }
-    return JwtSecret
+	if len(JwtSecret) == 0 {
+		InitJWTSecret()
+	}
+	return JwtSecret
 }
 
 // GenerateAccessToken creates a new JWT access token
@@ -44,7 +64,7 @@ func GenerateAccessToken(userID string) (string, error) {
 
 	claims := jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(15 * time.Minute).Unix(),
+		"exp":     time.Now().Add(accessExpiry).Unix(),
 		"iat":     time.Now().Unix(),
 		"type":    "access",
 	}

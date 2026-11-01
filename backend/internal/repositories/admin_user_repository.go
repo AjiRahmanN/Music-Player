@@ -14,6 +14,7 @@ type AdminUserRepository interface {
 	FindByID(ctx context.Context, id string) (*models.AdminUser, error)
 	Update(ctx context.Context, user *models.AdminUser) error
 	Delete(ctx context.Context, id string) error
+	CountAdmins(ctx context.Context) (int, error)
 }
 
 type adminUserRepository struct {
@@ -77,4 +78,12 @@ func (r *adminUserRepository) Update(ctx context.Context, user *models.AdminUser
 func (r *adminUserRepository) Delete(ctx context.Context, id string) error {
 	_, err := r.db.Exec(ctx, `DELETE FROM users WHERE id = $1`, id)
 	return err
+}
+
+func (r *adminUserRepository) CountAdmins(ctx context.Context) (int, error) {
+	var n int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE is_admin = true`).Scan(&n); err != nil {
+		return 0, err
+	}
+	return n, nil
 }
